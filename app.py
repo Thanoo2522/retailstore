@@ -82,3 +82,17 @@ def get_view_list():
         return jsonify(filenames)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+ #-------------------------------------------------------------
+@app.route('/modeproduct/<filename>', methods=['GET'])
+def get_modeproduct_image(filename):
+    try:
+        blob = bucket.blob(f"modeproduct/{filename}")
+        image_data = blob.download_as_bytes()
+
+        return send_file(
+            io.BytesIO(image_data),
+            mimetype='image/jpeg'
+        )
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+   #-------------------------=----------------------------------------------------
