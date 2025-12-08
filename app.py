@@ -113,7 +113,8 @@ def upload_image_with_folder():
             return jsonify({"status": "error", "message": "ต้องส่ง image_file"}), 400
 
         # ตั้งชื่อไฟล์ไม่ซ้ำ
-        filename = datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
+        #filename = datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
+        filename = f"{folder_name}.jpg"
 
         # path ใน Firebase Storage
         blob_path = f"{folder_name}/{filename}"
