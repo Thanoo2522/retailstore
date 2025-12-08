@@ -95,4 +95,25 @@ def get_modeproduct_image(filename):
         )
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-   #-------------------------=----------------------------------------------------
+# ---------------- API สำหรับสร้างโฟลเดอร์ ----------------
+@app.route("/create_storage_folder", methods=["POST"])
+def create_storage_folder():
+    try:
+        data = request.json
+        folder_name = data.get("folder_name")
+
+        if not folder_name:
+            return jsonify({"status": "error", "message": "folder_name required"}), 400
+
+        # Firebase Trick → ต้องสร้างไฟล์ .keep เพื่อให้เห็นโฟลเดอร์
+        blob = bucket.blob(f"{folder_name}/.init")
+
+        blob.upload_from_string("init")  # เนื้อหาใส่อะไรก็ได้
+
+        return jsonify({
+            "status": "success",
+            "message": f"Folder '{folder_name}' created in Firebase Storage."
+        })
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
