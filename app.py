@@ -112,24 +112,26 @@ def upload_image_with_folder():
         if not image_file:
             return jsonify({"status": "error", "message": "ต้องส่ง image_file"}), 400
 
-        # 📌 โฟลเดอร์ที่จะสร้าง
-        folder_path = os.path.join(UPLOAD_ROOT, folder_name)
+        # ตั้งชื่อไฟล์ไม่ซ้ำ
+        filename = datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
 
-        os.makedirs(folder_path, exist_ok=True)
+        # path ใน Firebase Storage
+        blob_path = f"{folder_name}/{filename}"
 
-        # 📌 ตั้งชื่อไฟล์ภาพ
-        file_path = os.path.join(folder_path, "image.jpg")
+        # อัปโหลดไป Firebase
+        blob = bucket.blob(blob_path)
+        blob.upload_from_file(image_file, content_type="image/jpeg")
 
-        # 📌 บันทึกภาพ
-        image_file.save(file_path)
+        # ให้ URL สำหรับโหลดกลับไป MAUI
+        blob.make_public()
+        download_url = blob.public_url
 
         return jsonify({
             "status": "success",
-            "message": f"บันทึกรูปสำเร็จในโฟลเดอร์: {folder_name}"
+            "message": f"อัปโหลดขึ้น Firebase สำเร็จ: {blob_path}",
+            "url": download_url
         })
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+        print("🔥 ERROR:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
