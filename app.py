@@ -136,3 +136,39 @@ def upload_image_with_folder():
     except Exception as e:
         print("🔥 ERROR:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
+        #-----------------------------------------------------
+@app.route("/register_shop", methods=["POST"])
+def register_shop():
+    try:
+        data = request.get_json()
+
+        shopname = data.get("shopname")
+        phone = data.get("phone")
+        password = data.get("password")   # ใช้เป็นชื่อ document
+
+        if not shopname or not phone or not password:
+            return jsonify({"status": "error", "message": "กรอกข้อมูลไม่ครบ"}), 400
+
+        # --------------------------------------------
+        # เก็บข้อมูลใน Firestore
+        # Collection: Shopname
+        # Document ID: password
+        # Fields: shopname, phone
+        # --------------------------------------------
+
+        doc_ref = db.collection("Shopname").document(password)
+
+        doc_ref.set({
+            "shopname": shopname,
+            "phone": phone
+        })
+
+        return jsonify({
+            "status": "success",
+            "message": "บันทึกข้อมูลสำเร็จ"
+        })
+
+    except Exception as e:
+        print("🔥 ERROR:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
+    #------------------------------------------------
