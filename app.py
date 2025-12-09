@@ -43,19 +43,30 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 def edit_image():
     if "image" not in request.files:
         return {"error": "No image uploaded"}, 400
+
     image_file = request.files["image"]
-    image_bytes = image_file.read()
+
+    # 🔥 บังคับ mimetype ให้ถูกต้อง
+    mime = image_file.mimetype
+    if mime not in ["image/jpeg", "image/png", "image/webp"]:
+        return {"error": f"Invalid mimetype: {mime}"}, 400
+
+    # ส่งให้ OpenAI ด้วยไฟล์จริง ไม่ใช่ bytes
     edited = client.images.edit(
         model="gpt-image-1",
-        image=image_bytes,
+        image=("photo.jpg", image_file.stream, mime),  # ⭐ ต้องเป็น tuple แบบนี้
         prompt="Make background pure white, enhance brightness and clarity, keep product details sharp",
-        size="768x768"  # 🔥 ชัด + ประหยัด
+        size="768x768"
     )
+
+    # รับ base64 กลับมา
     result_bytes = base64.b64decode(edited.data[0].b64_json)
+
     return send_file(
         BytesIO(result_bytes),
         mimetype="image/png"
     )
+
 #---------------------------------------------------------------------------------------------------
 
 # 🔹 สร้าง document system/way และตั้งค่า connected="true"
