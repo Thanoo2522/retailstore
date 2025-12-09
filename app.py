@@ -1,72 +1,67 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
- 
+from flask import Flask, request, jsonify, send_file
 import os
 import base64
-from datetime import datetime
 import traceback
-import uuid
 import json
-import time
-import requests
-import firebase_admin
-from firebase_admin import credentials, storage, db as rtdb, firestore
- 
 import io
 from io import BytesIO
+import firebase_admin
+from firebase_admin import credentials, storage, db as rtdb, firestore
 from openai import OpenAI
- 
-from io import BytesIO
- 
+
 app = Flask(__name__)
 
-# ------------------- Config -------------------get_user
+# ------------------- Config -------------------
 RTD_URL1 = "https://retailstore-4780f-default-rtdb.asia-southeast1.firebasedatabase.app"
 BUCKET_NAME = "retailstore-4780f.firebasestorage.app"
-#--------
+
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-UPLOAD_ROOT = "storage_folders"   # ← ต้องมีตัวนี้
-os.makedirs(UPLOAD_ROOT, exist_ok=True)
-#-------
+
 service_account_json = os.environ.get("FIREBASE_SERVICE_KEY")
 cred = credentials.Certificate(json.loads(service_account_json))
-firebase_admin.initialize_app(cred, {"storageBucket": BUCKET_NAME,"databaseURL": RTD_URL1})
+
+firebase_admin.initialize_app(
+    cred,
+    {"storageBucket": BUCKET_NAME, "databaseURL": RTD_URL1}
+)
 
 db = firestore.client()
-rtdb_ref = rtdb.reference("/") # ← Realtime Database root
+rtdb_ref = rtdb.reference("/")
 bucket = storage.bucket()
-#-------------------------------------------------------------------------------------
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("❌ ERROR: OPENAI_API_KEY is not set in environment")
 
+# ---------------- OpenAI -------------------
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
-#-------------------------------ให้ GPT แก้ไขภาพถ่าย-------------------------------------------------------
+
 
 # --------------------------- IMAGE EDIT ---------------------------
 @app.route("/edit_image", methods=["POST"])
 def edit_image():
     try:
+        # 1) ตรวจสอบไฟล์
         if "image" not in request.files:
-            return {"error": "No image uploaded"}, 400
+            return jsonify({"error": "Missing file 'image'"}), 400
 
         image_file = request.files["image"]
-        mime = image_file.mimetype
+        mime = image_file.mimetype or "image/jpeg"
 
-        # ใช้ model ที่รองรับการแก้ไขภาพจริง ๆ
+        # 2) เรียก GPT Image Edit
         edited = client.images.edit(
             model="gpt-image-1",
-            image=("photo.jpg", image_file.stream, mime),
-            prompt="clean background to pure white, sharpen image, improve clarity",
-            size="1024x1024"
+            image=("image.jpg", image_file.stream, mime),
+            prompt="clean white background, sharpen, enhance clarity, improve lighting",
+            size="1024x1024"       # ← ความละเอียดสูงสุด
         )
 
-        # แปลงภาพกลับเป็น byte[]
+        # 3) แปลง base64 → bytes
         result_bytes = base64.b64decode(edited.data[0].b64_json)
 
+        # 4) ส่งกลับเป็นไฟล์ PNG
         return send_file(
             BytesIO(result_bytes),
-            mimetype="image/png"
+            mimetype="image/png",
+            as_attachment=False
         )
 
     except Exception as e:
@@ -75,149 +70,60 @@ def edit_image():
         return jsonify({"error": str(e)}), 500
 
 
-#---------------------------------------------------------------------------------------------------
-
-# 🔹 สร้าง document system/way และตั้งค่า connected="true"
-@app.route("/create_connection", methods=["POST"])
-def create_connection():
-    try:
-        doc_ref = db.collection("system").document("connection")
-        doc_ref.set({
-            "connected": "true"
-        })
-        return jsonify({
-            "status": "success",
-            "message": "Created document system/way with connected=true"
-        }), 200
-    except Exception as e:
-        print("❌ Error:", e)
-        return jsonify({"status": "error", "message": str(e)}), 500    
-# ---------------- เช็คการเชื่อมต่อกับ firestore database ----------------
-@app.route("/check_connection", methods=["GET"])
-def check_connection():
-    try:
-        # 🔹 เข้าถึง document system/way
-        doc_ref = db.collection("system").document("connection")
-        doc = doc_ref.get()
-
-        if not doc.exists:
-            return jsonify({"status": "error", "message": "Document not found"}), 404
-
-        data = doc.to_dict()
-        connected = data.get("connected", "false")
-
-        if connected == "true":
-            return jsonify({"status": "success", "connected": True})
-        else:
-            return jsonify({"status": "success", "connected": False})
-
-    except Exception as e:
-        print("❌ Error:", e)
-        return jsonify({"status": "error", "message": str(e)}), 500
-#-----------------------------------------------------------
-    #------------------------- ดึงภาพทำสไลค์ที่ storage --------------
-@app.route('/get_view_list', methods=['GET'])
-def get_view_list():
-    try:
-        bucket = storage.bucket()
-        blobs = bucket.list_blobs(prefix="modeproduct/")
-
-        filenames = [
-            blob.name.replace("modeproduct/", "") 
-            for blob in blobs 
-            if blob.name.replace("modeproduct/", "") != ""  # กรองค่าว่าง
-        ]
-
-        return jsonify(filenames)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
- #-------------------------------------------------------------
-@app.route('/modeproduct/<filename>', methods=['GET'])
-def get_modeproduct_image(filename):
-    try:
-        blob = bucket.blob(f"modeproduct/{filename}")
-        image_data = blob.download_as_bytes()
-
-        return send_file(
-            io.BytesIO(image_data),
-            mimetype='image/jpeg'
-        )
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-# ---------------- API สำหรับสร้างโฟลเดอร์ ----------------
+# --------------------------- Firebase APIS ---------------------------
 @app.route("/upload_image_with_folder", methods=["POST"])
 def upload_image_with_folder():
     try:
         folder_name = request.form.get("folder_name")
-        image_file = request.files.get("image_file")
+        file = request.files.get("image_file")
 
         if not folder_name:
-            return jsonify({"status": "error", "message": "ต้องส่ง folder_name"}), 400
+            return jsonify({"status": "error", "message": "folder_name missing"}), 400
 
-        if not image_file:
-            return jsonify({"status": "error", "message": "ต้องส่ง image_file"}), 400
+        if not file:
+            return jsonify({"status": "error", "message": "image_file missing"}), 400
 
-        # ตั้งชื่อไฟล์ไม่ซ้ำ
-        #filename = datetime.now().strftime("%Y%m%d_%H%M%S") + ".jpg"
         filename = f"{folder_name}.jpg"
+        path = f"{folder_name}/{filename}"
 
-        # path ใน Firebase Storage
-        blob_path = f"{folder_name}/{filename}"
-
-        # อัปโหลดไป Firebase
-        blob = bucket.blob(blob_path)
-        blob.upload_from_file(image_file, content_type="image/jpeg")
-
-        # ให้ URL สำหรับโหลดกลับไป MAUI
+        blob = bucket.blob(path)
+        blob.upload_from_file(file, content_type="image/jpeg")
         blob.make_public()
-        download_url = blob.public_url
 
         return jsonify({
             "status": "success",
-            "message": f"อัปโหลดขึ้น Firebase สำเร็จ: {blob_path}",
-            "url": download_url
+            "url": blob.public_url,
+            "path": path
         })
 
     except Exception as e:
         print("🔥 ERROR:", e)
+        traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
-        #-----------------------------------------------------
+
+
+# --------------------------- Login/Register --------------------------
 @app.route("/register_shop", methods=["POST"])
 def register_shop():
     try:
         data = request.get_json()
-
         shopname = data.get("shopname")
         phone = data.get("phone")
-        password = data.get("password")   # ใช้เป็นชื่อ document
+        password = data.get("password")
 
         if not shopname or not phone or not password:
-            return jsonify({"status": "error", "message": "กรอกข้อมูลไม่ครบ"}), 400
-
-        # --------------------------------------------
-        # เก็บข้อมูลใน Firestore
-        # Collection: Shopname
-        # Document ID: password
-        # Fields: shopname, phone
-        # --------------------------------------------
+            return jsonify({"status": "error", "message": "Missing fields"}), 400
 
         doc_ref = db.collection("Shopname").document(password)
+        doc_ref.set({"shopname": shopname, "phone": phone, "password": password})
 
-        doc_ref.set({
-            "shopname": shopname,
-            "phone": phone,
-            "password":password
-        })
-
-        return jsonify({
-            "status": "success",
-            "message": "บันทึกข้อมูลสำเร็จ"
-        })
+        return jsonify({"status": "success", "message": "Saved"}), 200
 
     except Exception as e:
         print("🔥 ERROR:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
-    #------------------------------------------------
+
+
 @app.route("/check_password", methods=["POST"])
 def check_password():
     try:
@@ -225,21 +131,20 @@ def check_password():
         input_password = data.get("password")
 
         if not input_password:
-            return jsonify({"status": "error", "message": "ต้องส่ง password"}), 400
+            return jsonify({"status": "error", "message": "Missing password"}), 400
 
-        # collection: Shopname
-        # document: <password>
         doc_ref = db.collection("Shopname").document(input_password)
         doc = doc_ref.get()
 
         if doc.exists:
-            # password ถูกต้อง
-            return jsonify({"status": "success", "message": "เข้าสู่ระบบสำเร็จ"})
+            return jsonify({"status": "success", "message": "Login OK"})
         else:
-            # ไม่มี document ชื่อนี้ → ไม่ได้ลงทะเบียน
-            return jsonify({"status": "error", "message": "ยังไม่ได้ลงทะเบียน"})
+            return jsonify({"status": "error", "message": "Not registered"})
 
     except Exception as e:
         print("ERROR:", e)
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=8080)
