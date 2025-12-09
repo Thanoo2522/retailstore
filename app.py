@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
-from openai import OpenAI
+ 
 import os
 import base64
 from datetime import datetime
@@ -13,7 +13,10 @@ from firebase_admin import credentials, storage, db as rtdb, firestore
  
 import io
 from io import BytesIO
-
+from openai import OpenAI
+ 
+from io import BytesIO
+ 
 app = Flask(__name__)
 
 # ------------------- Config -------------------get_user
@@ -39,34 +42,37 @@ if not OPENAI_API_KEY:
 
 client = OpenAI(api_key=OPENAI_API_KEY)
 #-------------------------------ให้ GPT แก้ไขภาพถ่าย-------------------------------------------------------
-from openai import OpenAI
-import base64
-from io import BytesIO
-from flask import Flask, request, send_file
 
-client = OpenAI()
-
+# --------------------------- IMAGE EDIT ---------------------------
 @app.route("/edit_image", methods=["POST"])
 def edit_image():
-    if "image" not in request.files:
-        return {"error": "No image uploaded"}, 400
+    try:
+        if "image" not in request.files:
+            return {"error": "No image uploaded"}, 400
 
-    image_file = request.files["image"]
-    mime = image_file.mimetype
+        image_file = request.files["image"]
+        mime = image_file.mimetype
 
-    edited = client.images.edit(
-        model="gpt-4o-mini",
-        image=("photo.jpg", image_file.stream, mime),
-        prompt="make background pure white, improve clarity, sharpen details",
-        size="1024x1024"
-    )
+        # ใช้ model ที่รองรับการแก้ไขภาพจริง ๆ
+        edited = client.images.edit(
+            model="gpt-image-1",
+            image=("photo.jpg", image_file.stream, mime),
+            prompt="clean background to pure white, sharpen image, improve clarity",
+            size="1024x1024"
+        )
 
-    result_bytes = base64.b64decode(edited.data[0].b64_json)
+        # แปลงภาพกลับเป็น byte[]
+        result_bytes = base64.b64decode(edited.data[0].b64_json)
 
-    return send_file(
-        BytesIO(result_bytes),
-        mimetype="image/png"
-    )
+        return send_file(
+            BytesIO(result_bytes),
+            mimetype="image/png"
+        )
+
+    except Exception as e:
+        print("❌ ERROR in /edit_image:", e)
+        traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
 
 
 #---------------------------------------------------------------------------------------------------
