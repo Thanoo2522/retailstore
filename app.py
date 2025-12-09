@@ -50,15 +50,14 @@ def edit_image():
     if mime not in ["image/jpeg", "image/png", "image/webp"]:
         return {"error": f"Invalid mimetype: {mime}"}, 400
 
-    # ⛔ Render บางครั้ง stream = empty
-    # ⛔ แก้เป็น .read() เพื่อให้ได้ bytes เสมอ
+    # อ่าน bytes ตรงๆ ปลอดภัยกว่า image_file.stream
     image_bytes = image_file.read()
 
     edited = client.images.edit(
         model="gpt-image-1",
         image=("photo.jpg", image_bytes, mime),
         prompt="Make background pure white, enhance brightness and clarity, keep product details sharp",
-        size="768x768"
+        size="1024x1024"      # 👈 ต้องใช้ขนาดที่รองรับเท่านั้น
     )
 
     result_bytes = base64.b64decode(edited.data[0].b64_json)
