@@ -8,6 +8,7 @@ from io import BytesIO
 import firebase_admin
 from firebase_admin import credentials, storage, db as rtdb, firestore
 from openai import OpenAI
+import mimetypes
 
 app = Flask(__name__)
 
@@ -63,6 +64,43 @@ def edit_image():
     except Exception as e:
         print("❌ ERROR in /edit_image:", e)
         traceback.print_exc()
+        return jsonify({"error": str(e)}), 500
+#-------------------------------------------
+@app.route("/get_view_list", methods=["GET"])
+def get_view_list():
+    try:
+        folder_path = "modeproduct"   # โฟลเดอร์เก็บรูป
+        files = []
+
+        # loop เอาแต่ไฟล์รูป
+        for f in os.listdir(folder_path):
+            if f.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+                files.append(f)
+
+        return jsonify(files), 200
+
+    except Exception as e:
+        print("❌ ERROR in /get_view_list:", e)
+        return jsonify({"error": str(e)}), 500
+#-------------------------
+
+
+@app.route("/modeproduct/<filename>", methods=["GET"])
+def get_image(filename):
+    try:
+        folder_path = "modeproduct"
+        full_path = os.path.join(folder_path, filename)
+
+        if not os.path.exists(full_path):
+            return jsonify({"error": "File not found"}), 404
+
+        mime, _ = mimetypes.guess_type(full_path)
+        mime = mime or "application/octet-stream"
+
+        return send_file(full_path, mimetype=mime)
+
+    except Exception as e:
+        print("❌ ERROR:", e)
         return jsonify({"error": str(e)}), 500
 
 # --------------------------- Firebase APIS ---------------------------
