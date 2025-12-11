@@ -74,6 +74,25 @@ def edit_image():
         print("❌ ERROR in /edit_image:", e)
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
+#-----------------------------------------------------   
+@app.route('/get_view_list', methods=['GET'])
+def get_view_list():
+    try:
+        bucket = storage.bucket()
+
+        # list all files in folder "modeproduct/"
+        blobs = bucket.list_blobs(prefix="modeproduct/")
+
+        filenames = []
+        for blob in blobs:
+            name = blob.name.replace("modeproduct/", "")
+            if name and "." in name:
+                filenames.append(name)
+
+        return jsonify(filenames), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
     #---------------------------------------------
 @app.route('/image_view/<filename>', methods=['GET'])
