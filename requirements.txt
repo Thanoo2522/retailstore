@@ -8,3 +8,4 @@ boto3
 psycopg2-binary
 firebase-admin
 agora-token-builder==1.0.0
+Pillow==10.4.0
