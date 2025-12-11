@@ -42,7 +42,7 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 
 # --------------------------- IMAGE EDIT ---------------------------
- @app.route("/edit_image", methods=["POST"])
+@app.route("/edit_image", methods=["POST"])
 def edit_image():
     try:
         if "image" not in request.files:
