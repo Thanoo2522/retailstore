@@ -132,33 +132,30 @@ def upload_image_with_folder():
         bucket = storage.bucket()
 
         folder_name = request.form.get("folder_name")
+        picturename = request.form.get("picturename")
         file = request.files.get("image_file")
 
         if not folder_name:
             return jsonify({"status": "error", "message": "folder_name missing"}), 400
 
+        if not picturename:
+            return jsonify({"status": "error", "message": "picturename missing"}), 400
+
         if not file:
             return jsonify({"status": "error", "message": "image_file missing"}), 400
 
-        # 📌 ชื่อไฟล์ = <folder_name>.jpg
-        filename = f"{folder_name}.jpg"
-
-        # 📌 Path = <folder_name>/<folder_name>.jpg
-        path = f"{folder_name}/{filename}"
+        # Path: folderName/picturename
+        path = f"{folder_name}/{picturename}"
 
         blob = bucket.blob(path)
-
-        # 📌 อัปโหลดรูป
         blob.upload_from_file(file, content_type="image/jpeg")
-
-        # 📌 ทำให้เข้าถึงภาพได้ (optional)
         blob.make_public()
 
         return jsonify({
             "status": "success",
             "message": "Upload successful",
             "folder": folder_name,
-            "filename": filename,
+            "filename": picturename,
             "path": path,
             "public_url": blob.public_url
         }), 200
@@ -167,6 +164,7 @@ def upload_image_with_folder():
         print("🔥 ERROR:", e)
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 
 
