@@ -180,7 +180,7 @@ def register_shop():
         if not shopname or not phone or not password:
             return jsonify({"status": "error", "message": "Missing fields"}), 400
 
-        doc_ref = db.collection("Shopname").document(password)
+        doc_ref = db.collection("Shopname").document(shopname)
         doc_ref.set({"shopname": shopname, "phone": phone, "password": password})
 
         return jsonify({"status": "success", "message": "Saved"}), 200
@@ -190,27 +190,60 @@ def register_shop():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 
+from flask import Flask, request, jsonify
+from google.cloud import firestore
+
+app = Flask(__name__)
+db = firestore.Client()
+
 @app.route("/check_password", methods=["POST"])
 def check_password():
     try:
         data = request.get_json()
+
+        shopname = data.get("shopname")
         input_password = data.get("password")
 
-        if not input_password:
-            return jsonify({"status": "error", "message": "Missing password"}), 400
+        # ตรวจข้อมูลที่ส่งมา
+        if not shopname or not input_password:
+            return jsonify({
+                "status": "error",
+                "message": "Missing shopname or password"
+            }), 400
 
-        doc_ref = db.collection("Shopname").document(input_password)
+        # ดึงข้อมูลร้านจาก Firestore
+        doc_ref = db.collection("Shopname").document(shopname)
         doc = doc_ref.get()
 
-        if doc.exists:
-            return jsonify({"status": "success", "message": "Login OK"})
+        if not doc.exists:
+            return jsonify({
+                "status": "not_found",
+                "message": "Shop not registered"
+            }), 200
+
+        shop_data = doc.to_dict()
+        server_password = shop_data.get("password")
+
+        # เทียบรหัสผ่าน
+        if input_password == server_password:
+            return jsonify({
+                "status": "success",
+                "message": "Login OK"
+            }), 200
         else:
-            return jsonify({"status": "error", "message": "Not registered"})
+            return jsonify({
+                "status": "wrong_password",
+                "message": "Password incorrect"
+            }), 200
 
     except Exception as e:
         print("ERROR:", e)
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
+
