@@ -219,7 +219,8 @@ def save_product_price():
             "unitproduct": unitproduct,
             "pricepack": pricepack,
             "num_remainsingle": num_remainsingle,
-            "pricesingle": pricesingle
+            "pricesingle": pricesingle,
+            "test": "pricesingle"
         })
 
         return jsonify({
