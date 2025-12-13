@@ -1,35 +1,32 @@
 from flask import Flask, request, jsonify, send_file
-import os
-import base64
-import traceback
-import json
-import io
+import os, json, base64, traceback, tempfile
 from io import BytesIO
+
 import firebase_admin
 from firebase_admin import credentials, storage, db as rtdb, firestore
+
 from openai import OpenAI
-import mimetypes
-import tempfile
-
 from PIL import Image
- 
- 
 
+# ------------------- Flask -------------------
 app = Flask(__name__)
 
-# ------------------- Config -------------------
+# ------------------- Firebase Config -------------------
 RTD_URL1 = "https://retailstore-4780f-default-rtdb.asia-southeast1.firebasedatabase.app"
 BUCKET_NAME = "retailstore-4780f.firebasestorage.app"
 
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
 service_account_json = os.environ.get("FIREBASE_SERVICE_KEY")
+if not service_account_json:
+    raise RuntimeError("Missing FIREBASE_SERVICE_KEY")
+
 cred = credentials.Certificate(json.loads(service_account_json))
 
 firebase_admin.initialize_app(
     cred,
-    {"storageBucket": BUCKET_NAME, "databaseURL": RTD_URL1}
+    {
+        "storageBucket": BUCKET_NAME,
+        "databaseURL": RTD_URL1
+    }
 )
 
 db = firestore.client()
@@ -39,7 +36,6 @@ bucket = storage.bucket()
 # ---------------- OpenAI -------------------
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 client = OpenAI(api_key=OPENAI_API_KEY)
-
 
 # --------------------------- IMAGE EDIT ---------------------------
 @app.route("/edit_image", methods=["POST"])
@@ -71,10 +67,10 @@ def edit_image():
         )
 
     except Exception as e:
-        print("❌ ERROR in /edit_image:", e)
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
-#-----------------------------------------------------   
+
+# --------------------------- View Images ---------------------------
 @app.route('/get_view_list', methods=['GET'])
 def get_view_list():
     try:
@@ -82,168 +78,103 @@ def get_view_list():
         if not folder:
             return jsonify({"error": "Missing ?folder="}), 400
 
-        bucket = storage.bucket()
-
-        # ดึงไฟล์ทั้งหมดในโฟลเดอร์นั้น
         blobs = bucket.list_blobs(prefix=f"{folder}/")
-
-        filenames = []
-        for blob in blobs:
-            name = blob.name.replace(f"{folder}/", "")
-            if name and "." in name:
-                filenames.append(name)
+        filenames = [
+            blob.name.replace(f"{folder}/", "")
+            for blob in blobs
+            if "." in blob.name
+        ]
 
         return jsonify(filenames), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-    #---------------------------------------------
+
 @app.route('/image_view/<folder>/<filename>', methods=['GET'])
 def image_view(folder, filename):
     try:
-        bucket = storage.bucket()
         blob = bucket.blob(f"{folder}/{filename}")
-
         if not blob.exists():
             return jsonify({"error": "File not found"}), 404
 
-        temp_file = tempfile.NamedTemporaryFile(delete=False)
-        temp_path = temp_file.name
-        temp_file.close()
-
-        blob.download_to_filename(temp_path)
+        temp = tempfile.NamedTemporaryFile(delete=False)
+        blob.download_to_filename(temp.name)
 
         ext = filename.lower().split('.')[-1]
         mimetype = f"image/{'jpeg' if ext == 'jpg' else ext}"
 
-        return send_file(temp_path, mimetype=mimetype, as_attachment=False)
+        return send_file(temp.name, mimetype=mimetype)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-
-
-
-# --------------------------- Firebase APIS ---------------------------
+# --------------------------- Upload Image ---------------------------
 @app.route("/upload_image_with_folder", methods=["POST"])
 def upload_image_with_folder():
     try:
-        bucket = storage.bucket()
-
         folder_name = request.form.get("folder_name")
         picturename = request.form.get("picturename")
         file = request.files.get("image_file")
 
-        if not folder_name:
-            return jsonify({"status": "error", "message": "folder_name missing"}), 400
+        if not folder_name or not picturename or not file:
+            return jsonify({"status": "error", "message": "Missing fields"}), 400
 
-        if not picturename:
-            return jsonify({"status": "error", "message": "picturename missing"}), 400
-
-        if not file:
-            return jsonify({"status": "error", "message": "image_file missing"}), 400
-
-        # Path: folderName/picturename
         path = f"{folder_name}/{picturename}"
-
         blob = bucket.blob(path)
+
         blob.upload_from_file(file, content_type="image/jpeg")
         blob.make_public()
 
         return jsonify({
             "status": "success",
-            "message": "Upload successful",
-            "folder": folder_name,
-            "filename": picturename,
             "path": path,
             "public_url": blob.public_url
         }), 200
 
     except Exception as e:
-        print("🔥 ERROR:", e)
         traceback.print_exc()
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
-
-
-# --------------------------- Login/Register --------------------------
+# --------------------------- Register / Login ---------------------------
 @app.route("/register_shop", methods=["POST"])
 def register_shop():
-    try:
-        data = request.get_json()
-        shopname = data.get("shopname")
-        phone = data.get("phone")
-        password = data.get("password")
+    data = request.get_json()
+    shopname = data.get("shopname")
+    phone = data.get("phone")
+    password = data.get("password")
 
-        if not shopname or not phone or not password:
-            return jsonify({"status": "error", "message": "Missing fields"}), 400
+    if not shopname or not phone or not password:
+        return jsonify({"status": "error", "message": "Missing fields"}), 400
 
-        doc_ref = db.collection("Shopname").document(shopname)
-        doc_ref.set({"shopname": shopname, "phone": phone, "password": password})
+    db.collection("Shopname").document(shopname).set({
+        "shopname": shopname,
+        "phone": phone,
+        "password": password
+    })
 
-        return jsonify({"status": "success", "message": "Saved"}), 200
+    return jsonify({"status": "success"}), 200
 
-    except Exception as e:
-        print("🔥 ERROR:", e)
-        return jsonify({"status": "error", "message": str(e)}), 500
-
-
-from flask import Flask, request, jsonify
-from google.cloud import firestore
-
-app = Flask(__name__)
-db = firestore.Client()
 
 @app.route("/check_password", methods=["POST"])
 def check_password():
-    try:
-        data = request.get_json()
+    data = request.get_json()
+    shopname = data.get("shopname")
+    input_password = data.get("password")
 
-        shopname = data.get("shopname")
-        input_password = data.get("password")
+    if not shopname or not input_password:
+        return jsonify({"status": "error", "message": "Missing fields"}), 400
 
-        # ตรวจข้อมูลที่ส่งมา
-        if not shopname or not input_password:
-            return jsonify({
-                "status": "error",
-                "message": "Missing shopname or password"
-            }), 400
+    doc = db.collection("Shopname").document(shopname).get()
 
-        # ดึงข้อมูลร้านจาก Firestore
-        doc_ref = db.collection("Shopname").document(shopname)
-        doc = doc_ref.get()
+    if not doc.exists:
+        return jsonify({"status": "not_found"}), 200
 
-        if not doc.exists:
-            return jsonify({
-                "status": "not_found",
-                "message": "Shop not registered"
-            }), 200
-
-        shop_data = doc.to_dict()
-        server_password = shop_data.get("password")
-
-        # เทียบรหัสผ่าน
-        if input_password == server_password:
-            return jsonify({
-                "status": "success",
-                "message": "Login OK"
-            }), 200
-        else:
-            return jsonify({
-                "status": "wrong_password",
-                "message": "Password incorrect"
-            }), 200
-
-    except Exception as e:
-        print("ERROR:", e)
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+    if doc.to_dict().get("password") == input_password:
+        return jsonify({"status": "success"}), 200
+    else:
+        return jsonify({"status": "wrong_password"}), 200
 
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
-
