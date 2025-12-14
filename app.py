@@ -180,24 +180,20 @@ def check_password():
 def save_product_price():
     try:
         data = request.get_json()
-        print("📦 JSON RECEIVED:", data)  # 👈 debug สำคัญมาก
+        print("📦 JSON RECEIVED:", data)
 
         if not data:
+            return jsonify({"status": "error", "message": "No JSON data"}), 400
+
+        shopname = data.get("shopname")
+        textmode = data.get("textmode")
+
+        if not shopname or not textmode:
             return jsonify({
                 "status": "error",
-                "message": "No JSON data received"
+                "message": "Missing shopname or textmode"
             }), 400
 
-        Shopname = data.get("Shopname")
-        Textmode = data.get("Textmode")
-
-        if not Shopname or not Textmode:
-            return jsonify({
-                "status": "error",
-                "message": "Missing Shopname or Textmode"
-            }), 400
-
-        # 🔹 ตัวเลข แปลงให้ชัวร์
         num_remainpack = int(data.get("num_remainpack", 0))
         numpack = int(data.get("numpack", 0))
         unitproduct = data.get("unitproduct", "")
@@ -206,33 +202,24 @@ def save_product_price():
         num_remainsingle = int(data.get("num_remainsingle", 0))
         pricesingle = float(data.get("pricesingle", 0))
 
-        doc_ref = (
-            db.collection("showname")
-              .document(Shopname)
-              .collection("mode")
-              .document(Textmode)
-        )
+        db.collection("showname") \
+          .document(shopname) \
+          .collection("mode") \
+          .document(textmode) \
+          .set({
+              "num_remainpack": num_remainpack,
+              "numpack": numpack,
+              "unitproduct": unitproduct,
+              "pricepack": pricepack,
+              "num_remainsingle": num_remainsingle,
+              "pricesingle": pricesingle
+          })
 
-        doc_ref.set({
-            "num_remainpack": num_remainpack,
-            "numpack": numpack,
-            "unitproduct": unitproduct,
-            "pricepack": pricepack,
-            "num_remainsingle": num_remainsingle,
-            "pricesingle": pricesingle,
-            "test": "pricesingle"
-        })
-
-        return jsonify({
-            "status": "success",
-            "message": "บันทึกข้อมูลเรียบร้อย"
-        }), 200
+        return jsonify({"status": "success"}), 200
 
     except Exception as e:
-        return jsonify({
-            "status": "error",
-            "message": str(e)
-        }), 500
+        print("🔥 ERROR:", e)
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 #-----------------------------------------------------
  
