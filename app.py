@@ -191,6 +191,7 @@ def save_product_price():
         # ✅ รองรับทั้งตัวเล็ก + ตัวใหญ่
         shopname = data.get("shopname") or data.get("Shopname")
         textmode = data.get("textmode") or data.get("Textmode")
+        productname = data.get("productname") 
         image_url = data.get("image_url", "")
 
         if not shopname or not textmode:
@@ -211,6 +212,8 @@ def save_product_price():
           .document(shopname) \
           .collection("mode") \
           .document(textmode) \
+          .collection("product") \
+           .document(productname) \
           .set({
               "num_remainpack": num_remainpack,
               "numpack": numpack,
