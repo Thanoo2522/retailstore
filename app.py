@@ -237,4 +237,27 @@ def save_product_price():
         }), 500
 
 #-----------------------------------------------------
+@app.route("/get_products", methods=["GET"])
+def get_products():
+    shopname = request.args.get("shopname")
+    mode = request.args.get("mode")
+
+    if not shopname or not mode:
+        return jsonify({"error": "missing params"}), 400
+
+    docs = db.collection("Shopname") \
+        .document(shopname) \
+        .collection("mode") \
+        .document(mode) \
+        .collection("product") \
+        .stream()
+
+    result = []
+    for d in docs:
+        data = d.to_dict()
+        data["productname"] = d.id
+        result.append(data)
+
+    return jsonify(result)
+
  
