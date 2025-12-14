@@ -191,6 +191,7 @@ def save_product_price():
         # ✅ รองรับทั้งตัวเล็ก + ตัวใหญ่
         shopname = data.get("shopname") or data.get("Shopname")
         textmode = data.get("textmode") or data.get("Textmode")
+        image_url = data.get("image_url", "")
 
         if not shopname or not textmode:
             return jsonify({
@@ -216,6 +217,7 @@ def save_product_price():
               "unitproduct": unitproduct,
               "pricepack": pricepack,
               "num_remainsingle": num_remainsingle,
+              "image_url": image_url,
               "pricesingle": pricesingle
           })
 
