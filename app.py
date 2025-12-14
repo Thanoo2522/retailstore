@@ -188,14 +188,14 @@ def save_product_price():
                 "message": "No JSON data"
             }), 400
 
-        # ✅ ใช้ตัวใหญ่ให้ตรงกับ MAUI
-        shopname = data.get("Shopname")
-        textmode = data.get("Textmode")
+        # ✅ รองรับทั้งตัวเล็ก + ตัวใหญ่
+        shopname = data.get("shopname") or data.get("Shopname")
+        textmode = data.get("textmode") or data.get("Textmode")
 
         if not shopname or not textmode:
             return jsonify({
                 "status": "error",
-                "message": "Missing Shopname or Textmode"
+                "message": "Missing shopname or textmode"
             }), 400
 
         num_remainpack = int(data.get("num_remainpack", 0))
