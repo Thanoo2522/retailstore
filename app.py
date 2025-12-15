@@ -108,6 +108,44 @@ def image_view(folder, filename):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    #-----------------------
+@app.route("/update_mode", methods=["POST"])
+def update_mode():
+    try:
+        folder_name = request.form.get("folder_name")
+        picturename = request.form.get("picturename")
+        file = request.files.get("image_file")
+
+        if not folder_name or not picturename or not file:
+            return jsonify({
+                "status": "error",
+                "message": "Missing fields"
+            }), 400
+
+        # 📂 โครงสร้าง: folder_name/picturename
+        path = f"{folder_name}/{picturename}"
+        blob = bucket.blob(path)
+
+        blob.upload_from_file(
+            file,
+            content_type=file.mimetype or "image/jpeg"
+        )
+        blob.make_public()
+
+        return jsonify({
+            "status": "success",
+            "folder_name": folder_name,
+            "path": path,
+            "public_url": blob.public_url
+        }), 200
+
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 
 # --------------------------- Upload Image ---------------------------
 @app.route("/upload_image_with_folder", methods=["POST"])
