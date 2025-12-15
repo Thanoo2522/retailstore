@@ -152,7 +152,7 @@ def update_mode():
 def upload_image_with_folder():
     try:
         shopname = request.form.get("shopname")
-        folder_name = request.form.get("folder_name")de
+        folder_name = request.form.get("folder_name")
         picturename = request.form.get("picturename")
         file = request.files.get("image_file")
 
