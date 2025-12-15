@@ -8,7 +8,7 @@ from firebase_admin import credentials, storage, db as rtdb, firestore
 from openai import OpenAI
 from PIL import Image
 
-# ------------------- Flask -------------------
+# ------------------- Flask ----------------
 app = Flask(__name__)
 
 # ------------------- Firebase Config -------------------
