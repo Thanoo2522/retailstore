@@ -55,7 +55,7 @@ def edit_image():
                 "keep original subject unchanged, clean full white background, "
                 "sharpen, enhance clarity, improve lighting"
             ),
-            size="1024x1024"
+            size="512x512"
         )
 
         result_bytes = base64.b64decode(edited.data[0].b64_json)
@@ -90,7 +90,7 @@ def get_view_list():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 #
-# ---------- API : Get all categories ----------
+# ---------- API : Get all categories ------ 
 @app.route("/get_all_categories", methods=["GET"])
 def get_all_categories():
     try:
