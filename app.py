@@ -395,5 +395,47 @@ def get_products():
         result.append(data)
 
     return jsonify(result)
+    #---------------------------------------
+@app.route("/get_products_by_mode", methods=["GET"])
+def get_products_by_mode():
+    try:
+        shopname = request.args.get("shopname")
+        textmode = request.args.get("textmode")
+
+        if not shopname or not textmode:
+            return jsonify({
+                "status": "error",
+                "message": "Missing shopname or textmode"
+            }), 400
+
+        products_ref = (
+            db.collection("Shopname")
+              .document(shopname)
+              .collection("mode")
+              .document(textmode)
+              .collection("product")
+        )
+
+        docs = products_ref.stream()
+
+        products = []
+        for doc in docs:
+            data = doc.to_dict()
+            products.append({
+                "productname": doc.id,
+                "num_remainpack": data.get("num_remainpack", 0),
+                "pricesingle": data.get("pricesingle", 0)
+            })
+
+        return jsonify({
+            "status": "success",
+            "products": products
+        })
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
  
