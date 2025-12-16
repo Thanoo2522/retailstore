@@ -89,7 +89,62 @@ def get_view_list():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+#
+# ---------- API : Get all categories ----------
+@app.route("/get_all_categories", methods=["GET"])
+def get_all_categories():
+    try:
+        shopname = request.args.get("shopname")
 
+        if not shopname:
+            return jsonify({
+                "status": "error",
+                "message": "Missing shopname"
+            }), 400
+
+        bucket = storage.bucket()
+
+        # ดึงไฟล์ทั้งหมดใต้ shopname/
+        blobs = bucket.list_blobs(prefix=f"{shopname}/")
+
+        categories = {}
+        for blob in blobs:
+            # ตัด path เช่น shop1/อาหารและเครื่องปรุง/อาหารและเครื่องปรุง.jpg
+            parts = blob.name.split("/")
+
+            if len(parts) != 3:
+                continue
+
+            _, mode, filename = parts
+
+            # ใช้เฉพาะไฟล์ภาพหลักของหมวด
+            if filename.lower() == f"{mode}.jpg":
+                image_url = (
+                    f"https://storage.googleapis.com/"
+                    f"{bucket.name}/{blob.name}"
+                )
+
+                categories[mode] = image_url
+
+        # แปลงเป็น list
+        result = []
+        for mode, image in categories.items():
+            result.append({
+                "mode": mode,
+                "image": image
+            })
+
+        return jsonify({
+            "status": "success",
+            "categories": result
+        })
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+#
 
 @app.route('/image_view/<folder>/<filename>', methods=['GET'])
 def image_view(folder, filename):
