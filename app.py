@@ -55,7 +55,7 @@ def edit_image():
                 "keep original subject unchanged, clean full white background, "
                 "sharpen, enhance clarity, improve lighting"
             ),
-            size="512x512"
+            size="1024x1024"
         )
 
         result_bytes = base64.b64decode(edited.data[0].b64_json)
