@@ -422,8 +422,16 @@ def get_products_by_mode():
             products.append({
                 "productname": doc.id,
                 "num_remainpack": data.get("num_remainpack", 0),
+                "num_remainsingle": data.get("num_remainsingle", 0),  
+                "numpack": data.get("numpack", 0),   
+                "pricepack": data.get("pricepack", 0),  
+
                 "pricesingle": data.get("pricesingle", 0),
-                "image_url": data.get("image_url", "")
+                "image_url": data.get("image_url", ""),
+                 "unitproduct": data.get("unitproduct", "")
+                
+
+                
             })
 
         return jsonify({
