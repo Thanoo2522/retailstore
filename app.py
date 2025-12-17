@@ -214,20 +214,36 @@ def upload_image_with_folder():
                 "message": "Missing fields"
             }), 400
 
-        # 📂 โครงสร้าง: shopname/folder_name/picturename
+        # ===============================
+        # 🔹 sanitize + บังคับ .jpg
+        # ===============================
+        picturename = picturename.strip()
+
+        if not picturename.lower().endswith((".jpg", ".jpeg")):
+            picturename = f"{picturename}.jpg"
+
+        # ===============================
+        # 📂 path: shopname/folder_name/picturename.jpg
+        # ===============================
         path = f"{shopname}/{folder_name}/{picturename}"
+
         blob = bucket.blob(path)
 
+        # ===============================
+        # 🔹 upload + fix content-type
+        # ===============================
         blob.upload_from_file(
             file,
-            content_type=file.mimetype or "image/jpeg"
+            content_type="image/jpeg"
         )
+
         blob.make_public()
 
         return jsonify({
             "status": "success",
             "shopname": shopname,
             "folder_name": folder_name,
+            "filename": picturename,
             "path": path,
             "public_url": blob.public_url
         }), 200
@@ -238,6 +254,7 @@ def upload_image_with_folder():
             "status": "error",
             "message": str(e)
         }), 500
+
 
  #-------------------สร้าง โฟลเดอร์ตอนลงทะเบียนใหม่ ----------------- 
 @app.route("/create_shop_folder", methods=["POST"])
