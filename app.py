@@ -107,29 +107,35 @@ def get_all_categories():
         categories = {}
 
         for blob in blobs:
-            # shop1/อาหารและเครื่องปรุง/อาหารและเครื่องปรุง.jpg
+            # ตัวอย่าง blob.name:
+            # shop1/mode1/pic11.jpg
             parts = blob.name.split("/")
 
+            # ต้องเป็น shop/mode/file
             if len(parts) != 3:
                 continue
 
             _, mode, filename = parts
 
-            # ✅ ใช้เฉพาะรูปหลัก = ชื่อโฟลเดอร์.jpg
-            if filename.lower() == f"{mode}.jpg":
+            # ข้ามไฟล์ที่ไม่ใช่รูป
+            if not filename.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
+                continue
+
+            # ✅ ถ้ายังไม่มี mode นี้ → ใช้รูปแรกเป็น thumbnail
+            if mode not in categories:
                 image_url = (
                     f"https://storage.googleapis.com/"
                     f"{bucket.name}/{blob.name}"
                 )
-
                 categories[mode] = image_url
 
-        result = []
-        for mode, image in categories.items():
-            result.append({
+        result = [
+            {
                 "mode": mode,
-                "imageUrl": image
-            })
+                "imageUrl": image_url
+            }
+            for mode, image_url in categories.items()
+        ]
 
         return jsonify({
             "status": "success",
@@ -141,6 +147,7 @@ def get_all_categories():
             "status": "error",
             "message": str(e)
         }), 500
+
 #
 
 @app.route('/image_view/<folder>/<filename>', methods=['GET'])
