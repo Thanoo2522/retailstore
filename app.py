@@ -365,7 +365,7 @@ def save_product_price():
         unitproduct = data.get("unitproduct", "")
         pricepack = float(data.get("pricepack", 0))
 
-        num_remainsingle = int(data.get("num_remainsingle", 0))
+        priceSingle = int(data.get("priceSingle", 0))
         
 
         db.collection("Shopname") \
@@ -379,7 +379,7 @@ def save_product_price():
               "numpack": numpack,
               "unitproduct": unitproduct,
               "pricepack": pricepack,
-              "num_remainsingle": num_remainsingle,
+              "priceSingle": priceSingle,
               "image_url": image_url
               
           })
@@ -395,7 +395,24 @@ def save_product_price():
             "status": "error",
             "message": str(e)
         }), 500
+#-------------------- mode from storage --------------------------------
+@app.route("/get_modes", methods=["GET"])
+def get_modes():
+    shopname = request.args.get("shopname")
+    if not shopname:
+        return jsonify([])
 
+    bucket = storage.bucket()
+    blobs = bucket.list_blobs(prefix=f"{shopname}/", delimiter="/")
+
+    modes = []
+    for page in blobs.pages:
+        if page.prefixes:
+            for p in page.prefixes:
+                mode = p.replace(f"{shopname}/", "").replace("/", "")
+                modes.append(mode)
+
+    return jsonify(modes)
 #-----------------------------------------------------
 @app.route("/get_products", methods=["GET"])
 def get_products():
