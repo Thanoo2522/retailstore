@@ -402,11 +402,13 @@ def save_product_price():
           .collection("product") \
           .document(productname) \
           .set({
+              
               "num_remainpack": num_remainpack,
               "numpack": numpack,
               "unitproduct": unitproduct,
               "pricepack": pricepack,
               "pricesingle": pricesingle,
+              "productname":productname,
               "image_url": image_url
           }, merge=True)
 
@@ -487,13 +489,16 @@ def get_products_by_mode():
         for doc in docs:
             data = doc.to_dict()
             products.append({
+                
                 "productname": doc.id,
+                
                 "num_remainpack": data.get("num_remainpack", 0),
                 "pricesingle": data.get("pricesingle", 0),  
                 "numpack": data.get("numpack", 0),   
                 "pricepack": data.get("pricepack", 0),  
 
-             
+                
+                    "productname": data.get("productname", ""),
                 "image_url": data.get("image_url", ""),
                  "unitproduct": data.get("unitproduct", "")
                 
