@@ -348,45 +348,71 @@ def save_product_price():
                 "message": "No JSON data"
             }), 400
 
-        # ✅ รองรับทั้งตัวเล็ก + ตัวใหญ่
+        # ===============================
+        # 1️⃣ รับค่าหลัก (รองรับหลายรูปแบบชื่อ)
+        # ===============================
         shopname = data.get("shopname") or data.get("Shopname")
         textmode = data.get("textmode") or data.get("Textmode")
-        productname = data.get("productname") 
+        productname = data.get("productname")
         image_url = data.get("image_url", "")
 
-        if not shopname or not textmode:
+        if not shopname or not textmode or not productname:
             return jsonify({
                 "status": "error",
-                "message": "Missing shopname or textmode"
+                "message": "Missing shopname, textmode, or productname"
             }), 400
 
-        num_remainpack = int(data.get("num_remainpack", 0))
-        numpack = int(data.get("numpack", 0))
+        # ===============================
+        # 2️⃣ รับค่าตัวเลข (กันพัง)
+        # ===============================
+        try:
+            num_remainpack = int(data.get("num_remainpack", 0))
+        except:
+            num_remainpack = 0
+
+        try:
+            numpack = int(data.get("numpack", 0))
+        except:
+            numpack = 0
+
         unitproduct = data.get("unitproduct", "")
-        pricepack = float(data.get("pricepack", 0))
 
-        priceSingle = int(data.get("priceSingle", 0))
-        
+        try:
+            pricepack = float(data.get("pricepack", 0))
+        except:
+            pricepack = 0.0
 
+        # ✅ รองรับ pricesingle + priceSingle
+        try:
+            pricesingle = float(
+                data.get("pricesingle") or
+                data.get("priceSingle") or
+                0
+            )
+        except:
+            pricesingle = 0.0
+
+        # ===============================
+        # 3️⃣ บันทึก Firestore
+        # ===============================
         db.collection("Shopname") \
           .document(shopname) \
           .collection("mode") \
           .document(textmode) \
           .collection("product") \
-           .document(productname) \
+          .document(productname) \
           .set({
               "num_remainpack": num_remainpack,
               "numpack": numpack,
               "unitproduct": unitproduct,
               "pricepack": pricepack,
-              "priceSingle": priceSingle,
+              "pricesingle": pricesingle,
               "image_url": image_url
-              
-          })
+          }, merge=True)
 
         return jsonify({
             "status": "success",
-            "message": "บันทึกข้อมูลเรียบร้อย"
+            "message": "✅ บันทึกข้อมูลเรียบร้อย"
         }), 200
 
     except Exception as e:
