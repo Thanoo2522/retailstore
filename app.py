@@ -543,5 +543,31 @@ def save_order():
     })
 
     return jsonify({"status": "success"})
+#---------------------------------------
+@app.route("/get_orders", methods=["GET"])
+def get_orders():
+    phone = request.args.get("phone")
+
+    if not phone:
+        return jsonify({"status": "error", "message": "phone required"}), 400
+
+    orders = []
+
+    phone_ref = db.collection("Order").document(phone)
+
+    # 🔁 loop productname collection
+    for product_col in phone_ref.collections():
+        productname = product_col.id
+
+        for doc in product_col.stream():
+            data = doc.to_dict()
+            data["productname"] = productname
+            data["timestamp"] = doc.id
+            orders.append(data)
+
+    return jsonify({
+        "status": "success",
+        "orders": orders
+    })
 
  
