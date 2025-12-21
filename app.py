@@ -7,6 +7,7 @@ from firebase_admin import credentials, storage, db as rtdb, firestore
 
 from openai import OpenAI
 from PIL import Image
+from datetime import datetime
 
 # ------------------- Flask ----------------
 app = Flask(__name__)
@@ -516,6 +517,31 @@ def get_products_by_mode():
             "status": "error",
             "message": str(e)
         }), 500
+#------------------------------------
+@app.route("/save_order", methods=["POST"])
+def save_order():
+    data = request.get_json()
 
+    phone = data["phone"]
+    productname = data["productname"]
+    timestamp = datetime.utcnow().isoformat()
+
+    doc_ref = (
+        db.collection("Order")
+          .document(phone)
+          .collection(productname)
+          .document(timestamp)
+    )
+
+    doc_ref.set({
+        "productname": productname,
+        "numberproduct": data["numberproduct"],
+        "image_url": data["image_url"],
+        "into_unit": data["into_unit"],
+        "priceproduct": data["priceproduct"],
+        "created_at": firestore.SERVER_TIMESTAMP
+    })
+
+    return jsonify({"status": "success"})
 
  
