@@ -590,6 +590,44 @@ def get_orders():
         "status": "success",
         "orders": orders
     })
+#---------------------------------------------
+@app.route("/get_preorder", methods=["GET"])
+def get_preorder():
+    phone = request.args.get("phone")
+
+    doc_ref = db.collection("Order").document(phone)
+    doc = doc_ref.get()
+
+    if not doc.exists:
+        # ถ้ายังไม่เคยมี → สร้างเริ่มต้น
+        doc_ref.set({
+            "Preorder": 0,
+            "confirmorder": False
+        })
+        return jsonify({
+            "status": "success",
+            "Preorder": 0
+        })
+
+    data = doc.to_dict()
+    return jsonify({
+        "status": "success",
+        "Preorder": data.get("Preorder", 0)
+    })
+#---------------เพิ่ม Preorder ทีละ 1 (ตอนกด BuyPack / BuyUnit) 
+@app.route("/inc_preorder", methods=["POST"])
+def inc_preorder():
+    data = request.get_json()
+    phone = data["phone"]
+
+    doc_ref = db.collection("Order").document(phone)
+
+    doc_ref.update({
+        "Preorder": firestore.Increment(1)
+    })
+
+    return jsonify({"status": "success"})
+
 
 
  
