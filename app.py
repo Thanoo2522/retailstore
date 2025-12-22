@@ -552,17 +552,12 @@ def update_save_order():
     productname = data["productname"]
     numberproduct = data["numberproduct"]
 
-    doc_ref = (
-        db.collection("Order")
-          .document(phone)
-          .collection("items")
-          .document(productname)
-    )
+    doc_ref = db.collection("Order").document(phone).collection("items").document(productname)
 
-    doc_ref.update({
+    doc_ref.set({
         "numberproduct": numberproduct,
         "updated_at": firestore.SERVER_TIMESTAMP
-    })
+    }, merge=True)  # 🔥 merge=True อัปเดต field เท่านั้น
 
     return jsonify({"status": "success"})
 
