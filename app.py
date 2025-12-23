@@ -630,8 +630,7 @@ def inc_preorder():
 
     return jsonify({"status": "success"})
 #----------------------------------------------
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+
 
 @app.route("/register_customer", methods=["POST"])
 def register_customer():
@@ -675,7 +674,47 @@ def register_customer():
 
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-        
+        #-------------------------------------------------
+@app.route("/get_customer", methods=["POST"])
+def get_customer():
+    try:
+        data = request.get_json()
+        customer_name = data.get("customerName")
+
+        if not customer_name:
+            return jsonify({
+                "status": "error",
+                "message": "Missing customerName"
+            }), 400
+
+        customer_ref = (
+            db.collection("customers")
+              .document(customer_name)
+        )
+
+        doc = customer_ref.get()
+        if not doc.exists:
+            return jsonify({
+                "status": "error",
+                "message": "Customer not found"
+            }), 404
+
+        customer = doc.to_dict()
+
+        return jsonify({
+            "status": "success",
+            "customerName": customer["customerName"],
+            "phoneNumber": customer["phoneNumber"],
+            "address": customer["address"],
+            "shopname": customer["shopname"]
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 #--------------------------------------------
 @app.route("/login_customer", methods=["POST"])
 def login_customer():
