@@ -9,6 +9,8 @@ from openai import OpenAI
 from PIL import Image
 from datetime import datetime
 
+from werkzeug.security import generate_password_hash, check_password_hash
+
 # ------------------- Flask ----------------
 app = Flask(__name__)
 
@@ -627,7 +629,99 @@ def inc_preorder():
     })
 
     return jsonify({"status": "success"})
+#----------------------------------------------
+from werkzeug.security import generate_password_hash, check_password_hash
+from datetime import datetime
 
+@app.route("/register_customer", methods=["POST"])
+def register_customer():
+    try:
+        data = request.get_json()
 
+        shopname = data.get("shopname")
+        customer_name = data.get("customerName")
+        phone = data.get("phoneNumber")
+        address = data.get("address")
+        password = data.get("password")
 
+        if not shopname or not customer_name or not phone or not address or not password:
+            return jsonify({"status": "error", "message": "Missing required fields"}), 400
+
+        if len(phone) != 10:
+            return jsonify({"status": "error", "message": "Phone number must be 10 digits"}), 400
+
+        customer_ref = (
+            db.collection("customers")
+              .document(customer_name)
  
+        )
+
+        if customer_ref.get().exists:
+            return jsonify({"status": "error", "message": "Customer already exists"}), 409
+
+        hashed_password = generate_password_hash(password)
+
+        customer_ref.set({
+            
+            "shopname": shopname,
+            "customerName": customer_name,
+            "phoneNumber": phone,
+            "address": address,
+            "passwordHash": hashed_password,
+            "createdAt": datetime.utcnow()
+        })
+
+        return jsonify({"status": "success", "message": "Customer registered"}), 200
+
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+        
+#--------------------------------------------
+@app.route("/login_customer", methods=["POST"])
+def login_customer():
+    try:
+        data = request.get_json()
+
+        customer_name = data.get("customer_name")
+        password = data.get("password")
+
+        if not customer_name or not password:
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields"
+            }), 400
+
+        customer_ref = (
+            db.collection("customers")
+              .document(customer_name)
+        )
+
+        doc = customer_ref.get()
+        if not doc.exists:
+            return jsonify({
+                "status": "error",
+                "message": "Customer not found"
+            }), 404
+
+        customer = doc.to_dict()
+
+        # ✅ เช็ครหัสผ่าน
+        if not check_password_hash(customer["passwordHash"], password):
+            return jsonify({
+                "status": "error",
+                "message": "Invalid password"
+            }), 401
+
+        # ✅ return shopname เพิ่ม
+        return jsonify({
+            "status": "success",
+            "message": "Login successful",
+            "customerName": customer.get("customerName"),
+            "shopname": customer.get("shopname")
+        }), 200
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
