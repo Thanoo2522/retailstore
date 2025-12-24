@@ -601,19 +601,32 @@ def delete_order():
     productname = data["productname"]
     timestamp = data["timestamp"]
 
-    doc_ref = (
-        db.collection("Order")
-          .document(phone)
-          .collection(productname)
-          .document(timestamp)
-    )
+    order_doc_ref = db.collection("Order").document(phone)
 
-    doc_ref.delete()
+    # 🔥 1. ลบรายการสินค้า
+    product_doc_ref = (
+        order_doc_ref
+        .collection(productname)
+        .document(timestamp)
+    )
+    product_doc_ref.delete()
+
+    # 🔥 2. ลดค่า Preorder ลง 1 (แต่ไม่ให้ติดลบ)
+    order_doc = order_doc_ref.get()
+    if order_doc.exists:
+        current_preorder = order_doc.to_dict().get("Preorder", 0)
+        new_preorder = max(current_preorder - 1, 0)
+
+        order_doc_ref.update({
+            "Preorder": new_preorder
+        })
 
     return jsonify({
         "status": "success",
-        "message": "Order deleted"
+        "message": "Order deleted and preorder updated",
+        "Preorder": new_preorder
     })
+
 
 #---------------------------------------------
 @app.route("/get_preorder", methods=["GET"])
