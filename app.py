@@ -13,7 +13,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 #---------------------------------------
 import qrcode
 import io
-import base64
+ 
 INSTALL_URL = "https://jai.app/install"
 
 # ------------------- Flask ----------------
