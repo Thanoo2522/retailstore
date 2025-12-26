@@ -10,6 +10,11 @@ from PIL import Image
 from datetime import datetime
 
 from werkzeug.security import generate_password_hash, check_password_hash
+#---------------------------------------
+import qrcode
+import io
+import base64
+INSTALL_URL = "https://jai.app/install"
 
 # ------------------- Flask ----------------
 app = Flask(__name__)
@@ -801,10 +806,7 @@ def login_customer():
             "message": str(e)
         }), 500
 #--------------------- สร้าง  qrcode--
-import qrcode
-import io
-import base64
-INSTALL_URL = "https://jai.app/install"
+
 
 @app.route("/generate_qr", methods=["POST"])
 def generate_qr():
