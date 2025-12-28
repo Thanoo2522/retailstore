@@ -86,11 +86,14 @@ def get_view_list():
         if not folder:
             return jsonify({"error": "Missing ?folder="}), 400
 
-        blobs = bucket.list_blobs(prefix=f"{folder}/")
+        # ดึงไฟล์ทั้งหมดใน modeproduct/{folder}/
+        prefix = f"modeproduct/{folder}/"
+        blobs = bucket.list_blobs(prefix=prefix)
+
         filenames = [
-            blob.name.replace(f"{folder}/", "")
+            blob.name.replace(prefix, "")  # เอาเฉพาะชื่อไฟล์ ไม่เอา path
             for blob in blobs
-            if "." in blob.name
+            if "." in blob.name  # กรองเฉพาะไฟล์
         ]
 
         return jsonify(filenames), 200
