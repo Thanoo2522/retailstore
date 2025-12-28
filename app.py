@@ -471,6 +471,15 @@ def get_products():
         data["productname"] = d.id
         result.append(data)
 
+
+
+
+
+
+
+
+        
+
     return jsonify(result)
     #---------------------------------------
 @app.route("/get_products_by_mode", methods=["GET"])
@@ -632,6 +641,25 @@ def delete_order():
         "Preorder": new_preorder
     })
 
+#--------------------------------------
+@app.route("/get_modes", methods=["GET"])
+def get_modes():
+    bucket = storage.bucket()
+    blobs = bucket.list_blobs(prefix="modeproduct/")
+
+    folder_names = set()
+
+    for blob in blobs:
+        name = blob.name.replace("modeproduct/", "")
+        if "/" in name:
+            folder = name.split("/")[0]
+            if folder:
+                folder_names.add(folder)
+
+    return jsonify({
+        "status": "success",
+        "modes": sorted(list(folder_names))
+    })
 
 #---------------------------------------------
 @app.route("/get_preorder", methods=["GET"])
