@@ -86,20 +86,21 @@ def get_view_list():
         if not folder:
             return jsonify({"error": "Missing ?folder="}), 400
 
-        # ดึงไฟล์ทั้งหมดใน modeproduct/{folder}/
+        # prefix ต้องรวม "modeproduct/"
         prefix = f"modeproduct/{folder}/"
         blobs = bucket.list_blobs(prefix=prefix)
 
         filenames = [
-            blob.name.replace(prefix, "")  # เอาเฉพาะชื่อไฟล์ ไม่เอา path
+            blob.name.replace(prefix, "")  # เอาเฉพาะชื่อไฟล์
             for blob in blobs
-            if "." in blob.name  # กรองเฉพาะไฟล์
+            if "." in blob.name
         ]
 
         return jsonify(filenames), 200
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
 #
 # ---------- API : Get all categories ----
 @app.route("/get_all_categories", methods=["GET"])
@@ -164,7 +165,8 @@ def get_all_categories():
 @app.route('/image_view/<folder>/<filename>', methods=['GET'])
 def image_view(folder, filename):
     try:
-        blob = bucket.blob(f"{folder}/{filename}")
+        # folder ต้องส่งชื่อหมวดจริง เช่น "สินค้าสุขภาพ"
+        blob = bucket.blob(f"modeproduct/{folder}/{filename}")
         if not blob.exists():
             return jsonify({"error": "File not found"}), 404
 
@@ -178,6 +180,7 @@ def image_view(folder, filename):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
     #-----------------------
 @app.route("/update_mode", methods=["POST"])
 def update_mode():
