@@ -770,8 +770,10 @@ def get_preorder():
         )
 
         order_ref.set({
-            "status": "draft",
+            "status": "draft",    # "status": "draft" ยังเพิ่มสินค้าได้  , "status": "confirmed"  // 🔒 ห้ามเพิ่มสินค้า
+            "Preorder": 0,
             "createdAt": datetime.utcnow()
+            
         })
 
         customer_ref.update({
@@ -790,21 +792,73 @@ def get_preorder():
  
 
 #---------------เพิ่ม Preorder ทีละ 1 (ตอนกด BuyPack / BuyUnit) 
+from google.cloud import firestore
+
 @app.route("/inc_preorder", methods=["POST"])
 def inc_preorder():
     data = request.get_json()
+
     customerName = data.get("customerName")
-    if not customerName:
-        return jsonify({"status": "error", "message": "Missing customerName"}), 400
+    shopname = data.get("shopname")
 
-    doc_ref = db.collection("Order").document(customerName)
+    if not customerName or not shopname:
+        return jsonify({
+            "status": "error",
+            "message": "Missing customerName or shopname"
+        }), 400
 
-    # เพิ่มค่า Preorder
-    doc_ref.update({
+    customer_ref = (
+        db.collection(shopname)
+          .document("customer")
+          .collection("customers")
+          .document(customerName)
+    )
+
+    customer_doc = customer_ref.get()
+    if not customer_doc.exists:
+        return jsonify({
+            "status": "error",
+            "message": "Customer not found"
+        }), 404
+
+    customer_data = customer_doc.to_dict()
+    active_order_id = customer_data.get("activeOrderId")
+
+    if not active_order_id:
+        return jsonify({
+            "status": "error",
+            "message": "No active order"
+        }), 400
+
+    order_ref = (
+        customer_ref
+          .collection("orders")
+          .document(active_order_id)
+    )
+
+    order_doc = order_ref.get()
+    if not order_doc.exists:
+        return jsonify({
+            "status": "error",
+            "message": "Order not found"
+        }), 404
+
+    order_data = order_doc.to_dict()
+
+    # 🔒 เช็คสถานะ
+    if order_data.get("status") != "draft":
+        return jsonify({
+            "status": "error",
+            "message": "Order already confirmed"
+        }), 400
+
+    # ✅ เพิ่ม Preorder ทีละ 1
+    order_ref.update({
         "Preorder": firestore.Increment(1)
     })
 
     return jsonify({"status": "success"})
+
 
 #----------------------------------------------
 
