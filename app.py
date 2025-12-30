@@ -733,7 +733,7 @@ def get_preorder():
             "message": "Missing customerName or shopname"
         }), 400
 
-    doc_ref = db.collection(shopname).document(customerName)
+    doc_ref = db.collection(shopname).document("customer").collection("customers").document(customerName)
     doc = doc_ref.get()
 
     if not doc.exists:
@@ -792,6 +792,8 @@ def register_customer():
 
         customer_ref = (
             db.collection(shopname)
+              .document("customer")
+              .collection("customers")
               .document(customer_name)
  
         )
