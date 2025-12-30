@@ -375,7 +375,7 @@ def check_password():
     if not shopname or not input_password:
         return jsonify({"status": "error", "message": "Missing fields"}), 400
 
-    doc = db.collection("Shopname").document(shopname).get()
+    doc = db.collection(shopname).document("register").get()
 
     if not doc.exists:
         return jsonify({"status": "not_found"}), 200
