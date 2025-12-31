@@ -746,23 +746,67 @@ def save_order():
     #------------------------------------------
 @app.route("/update_save_order", methods=["POST"])
 def update_save_order():
-    data = request.get_json()
+    try:
+        data = request.get_json()
 
-    phone = data["phone"]
-    productname = data["productname"]
-    timestamp = data["timestamp"]
-    numberproduct = data["numberproduct"]
+        shopname = data.get("shopname")
+        customer_name = data.get("customerName")
+        order_id = data.get("orderId")
+        item_id = data.get("itemId")
+        numberproduct = data.get("numberproduct")
 
-    doc_ref = db.collection("Order").document(phone).collection(productname).document(timestamp)
+        # 🔥 validate
+        if not all([shopname, customer_name, order_id, item_id]):
+            return jsonify({
+                "status": "error",
+                "message": "Missing required fields"
+            }), 400
 
-    # ใช้ merge=True เพื่อไม่ให้ error และไม่ลบ field อื่น
-    doc_ref.set({
-        "productname": productname,
-        "numberproduct": numberproduct,
-        "updated_at": firestore.SERVER_TIMESTAMP
-    }, merge=True)
+        if numberproduct is None or numberproduct < 0:
+            return jsonify({
+                "status": "error",
+                "message": "Invalid numberproduct"
+            }), 400
 
-    return jsonify({"status": "success"})
+        # ===============================
+        # Firestore path:
+        # /{shopname}/customer/customers/{customerName}/orders/{orderId}/items/{itemId}
+        # ===============================
+        item_ref = (
+            db.collection(shopname)
+              .document("customer")
+              .collection("customers")
+              .document(customer_name)
+              .collection("orders")
+              .document(order_id)
+              .collection("items")
+              .document(item_id)
+        )
+
+        # 🔎 ตรวจว่ามี item จริง
+        if not item_ref.get().exists:
+            return jsonify({
+                "status": "error",
+                "message": "Item not found"
+            }), 404
+
+        # ✅ update จำนวน
+        item_ref.update({
+            "numberproduct": numberproduct,
+            "updated_at": firestore.SERVER_TIMESTAMP
+        })
+
+        return jsonify({
+            "status": "success"
+        })
+
+    except Exception as e:
+        print("🔥 ERROR update_save_order:", e)
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+
 
 #---------------------------------------
 @app.route("/get_orders", methods=["GET"])
