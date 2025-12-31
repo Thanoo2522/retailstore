@@ -1070,37 +1070,73 @@ def register_customer():
 def get_customer():
     try:
         data = request.get_json()
-        customer_name = data.get("customerName")
 
-        if not customer_name:
+        customer_name = data.get("customerName")
+        shopname = data.get("shopname")
+        active_order_id = data.get("activeOrderId")  # ✅ รับ orderId
+
+        if not customer_name or not shopname:
             return jsonify({
                 "status": "error",
-                "message": "Missing customerName"
+                "message": "Missing customerName or shopname"
             }), 400
 
+        # ===============================
+        # 1️⃣ customer path
+        # ===============================
         customer_ref = (
-            db.collection("customers")
+            db.collection(shopname)
+              .document("customer")
+              .collection("customers")
               .document(customer_name)
         )
 
-        doc = customer_ref.get()
-        if not doc.exists:
+        customer_doc = customer_ref.get()
+        if not customer_doc.exists:
             return jsonify({
                 "status": "error",
                 "message": "Customer not found"
             }), 404
 
-        customer = doc.to_dict()
+        customer = customer_doc.to_dict()
 
+        items_list = []
+
+        # ===============================
+        # 2️⃣ ถ้ามี activeOrderId → โหลด items
+        # ===============================
+        if active_order_id:
+            order_ref = (
+                customer_ref
+                  .collection("orders")
+                  .document(active_order_id)
+            )
+
+            order_doc = order_ref.get()
+            if order_doc.exists:
+                items_ref = order_ref.collection("items")
+                items_docs = items_ref.stream()
+
+                for item in items_docs:
+                    item_data = item.to_dict()
+                    item_data["itemId"] = item.id
+                    items_list.append(item_data)
+
+        # ===============================
+        # 3️⃣ ส่งข้อมูลกลับ
+        # ===============================
         return jsonify({
             "status": "success",
-            "customerName": customer["customerName"],
-            "phoneNumber": customer["phoneNumber"],
-            "address": customer["address"],
-            "shopname": customer["shopname"]
+            "customerName": customer.get("customerName", ""),
+            "phoneNumber": customer.get("phoneNumber", ""),
+            "address": customer.get("address", ""),
+            "shopname": shopname,
+            "activeOrderId": active_order_id,
+            "items": items_list   # ✅ สำคัญมาก
         }), 200
 
     except Exception as e:
+        print("🔥 ERROR get_customer:", e)
         return jsonify({
             "status": "error",
             "message": str(e)
