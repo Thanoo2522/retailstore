@@ -888,44 +888,9 @@ def delete_order():
             }), 400
 
         # ===============================
-        # path:
-        # /{shopname}/customer/customers/{customerName}/orders/{orderId}/items/{itemId}
+        # order ref
+        # /{shopname}/customer/customers/{customerName}/orders/{orderId}
         # ===============================
-        item_ref = (
-            db.collection(shopname)
-              .document("customer")
-              .collection("customers")
-              .document(customer_name)
-              .collection("orders")
-              .document(order_id)
-              .collection("items")
-              .document(item_id)
-        )
-
-        # 🔎 ตรวจว่ามี item จริง
-        if not item_ref.get().exists:
-            return jsonify({
-                "status": "error",
-                "message": "Item not found"
-            }), 404
-
-        # 🔥 ลบ item
-        item_ref.delete()
-
-        # (OPTIONAL) 🔢 อัปเดตจำนวน item ทั้งหมดใน order
-        items_ref = (
-            db.collection(shopname)
-              .document("customer")
-              .collection("customers")
-              .document(customer_name)
-              .collection("orders")
-              .document(order_id)
-              .collection("items")
-        )
-
-        item_count = len(list(items_ref.stream()))
-
-        # บันทึกจำนวนคงเหลือใน order document (ถ้าคุณใช้)
         order_ref = (
             db.collection(shopname)
               .document("customer")
@@ -935,7 +900,40 @@ def delete_order():
               .document(order_id)
         )
 
+        order_doc = order_ref.get()
+        if not order_doc.exists:
+            return jsonify({
+                "status": "error",
+                "message": "Order not found"
+            }), 404
+
+        # ===============================
+        # item ref
+        # /items/{itemId}
+        # ===============================
+        item_ref = order_ref.collection("items").document(item_id)
+
+        if not item_ref.get().exists:
+            return jsonify({
+                "status": "error",
+                "message": "Item not found"
+            }), 404
+
+        # 🔥 1. ลบ item
+        item_ref.delete()
+
+        # 🔥 2. ลด Preorder ลง 1 (ไม่ให้ติดลบ)
+        order_data = order_doc.to_dict()
+        current_preorder = order_data.get("Preorder", 0)
+        new_preorder = max(current_preorder - 1, 0)
+
+        # 🔥 3. นับ item ที่เหลือ (optional แต่แนะนำ)
+        items_ref = order_ref.collection("items")
+        item_count = len(list(items_ref.stream()))
+
+        # 🔥 4. update order document
         order_ref.set({
+            "Preorder": new_preorder,
             "item_count": item_count,
             "updated_at": firestore.SERVER_TIMESTAMP
         }, merge=True)
@@ -943,6 +941,7 @@ def delete_order():
         return jsonify({
             "status": "success",
             "message": "Item deleted successfully",
+            "Preorder": new_preorder,
             "item_count": item_count
         })
 
@@ -952,6 +951,7 @@ def delete_order():
             "status": "error",
             "message": str(e)
         }), 500
+
 
 #--------------------------------------
 @app.route("/get_modes", methods=["GET"])
