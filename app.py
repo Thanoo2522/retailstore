@@ -567,13 +567,15 @@ def get_products_by_mode():
 def confirm_order():
     try:
         data = request.get_json()
-        customerName = data.get("customerName")
-        shopname = data.get("shopname")
 
-        if not customerName or not shopname:
+        shopname = data.get("shopname")
+        customerName = data.get("customerName")
+        activeOrderId = data.get("activeOrderId")
+
+        if not shopname or not customerName or not activeOrderId:
             return jsonify({
                 "status": "error",
-                "message": "Missing customerName or shopname"
+                "message": "Missing shopname, customerName or activeOrderId"
             }), 400
 
         customer_ref = (
@@ -583,51 +585,44 @@ def confirm_order():
               .document(customerName)
         )
 
-        customer_doc = customer_ref.get()
-        if not customer_doc.exists:
-            return jsonify({"status": "error", "message": "Customer not found"}), 404
-
-        customer_data = customer_doc.to_dict()
-        old_order_id = customer_data.get("activeOrderId")
-
-        if not old_order_id:
-            return jsonify({"status": "error", "message": "No active order"}), 400
-
-        old_order_ref = (
+        order_ref = (
             customer_ref
               .collection("orders")
-              .document(old_order_id)
+              .document(activeOrderId)
         )
 
-        # 🔒 1️⃣ confirm order เดิม
-        old_order_ref.update({
+        if not order_ref.get().exists:
+            return jsonify({
+                "status": "error",
+                "message": "Order not found"
+            }), 404
+
+        # 🔒 1️⃣ update status ของ order
+        order_ref.update({
             "status": "confirmed",
             "confirmedAt": firestore.SERVER_TIMESTAMP
         })
 
-        # 🆕 2️⃣ สร้าง order ใหม่
-        new_order_id = str(int(time.time() * 1000))
-        new_order_ref = (
-            customer_ref
-              .collection("orders")
-              .document(new_order_id)
-        )
+        # 🔁 2️⃣ update status ของ items ทุกตัว
+        items_ref = order_ref.collection("items")
+        items = items_ref.stream()
 
-        new_order_ref.set({
-            "status": "draft",
-            "Preorder": 0,
-            "createdAt": firestore.SERVER_TIMESTAMP
-        })
+        batch = db.batch()
+        count = 0
 
-        # 🔁 3️⃣ อัปเดต activeOrderId
-        customer_ref.update({
-            "activeOrderId": new_order_id
-        })
+        for item in items:
+            batch.update(item.reference, {
+                "status": "confirmed"
+            })
+            count += 1
+
+        if count > 0:
+            batch.commit()
 
         return jsonify({
             "status": "success",
-            "oldOrderId": old_order_id,
-            "newOrderId": new_order_id
+            "orderId": activeOrderId,
+            "updatedItems": count
         })
 
     except Exception as e:
