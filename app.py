@@ -14,6 +14,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import qrcode
 import io
 import uuid
+import time
  
 INSTALL_URL = "https://jai.app/install"
 
@@ -597,13 +598,13 @@ def confirm_order():
                 "message": "Order not found"
             }), 404
 
-        # 🔒 1️⃣ update status ของ order
+        # 1️⃣ update status ของ order
         order_ref.update({
             "status": "confirmed",
             "confirmedAt": firestore.SERVER_TIMESTAMP
         })
 
-        # 🔁 2️⃣ update status ของ items ทุกตัว
+        # 2️⃣ update status ของ items ทุกตัว
         items_ref = order_ref.collection("items")
         items = items_ref.stream()
 
@@ -618,6 +619,11 @@ def confirm_order():
 
         if count > 0:
             batch.commit()
+
+        # ⭐ สำคัญ: ล้าง activeOrderId
+        customer_ref.update({
+            "activeOrderId": ""
+        })
 
         return jsonify({
             "status": "success",
@@ -999,8 +1005,8 @@ def get_modesonline():
 
 
 #---------------------------------------------
-from datetime import datetime
-import time
+ 
+
 
 @app.route("/get_preorder", methods=["GET"])
 def get_preorder():
@@ -1022,10 +1028,10 @@ def get_preorder():
 
     customer_doc = customer_ref.get()
 
-    # 1️⃣ ถ้ายังไม่มี customer
+    # 1️⃣ ถ้ายังไม่มี customer → สร้าง
     if not customer_doc.exists:
         customer_ref.set({
-            "activeOrderId": None,
+            "activeOrderId": "",
             "createdAt": datetime.utcnow()
         }, merge=True)
 
@@ -1034,8 +1040,22 @@ def get_preorder():
     customer_data = customer_doc.to_dict()
     active_order_id = customer_data.get("activeOrderId")
 
-    # 2️⃣ ถ้ายังไม่มี order → สร้างใหม่
-    if not active_order_id:
+    # 2️⃣ เช็คว่าต้องสร้าง order ใหม่ไหม
+    need_new_order = False
+
+    if not active_order_id or active_order_id == "":
+        need_new_order = True
+    else:
+        check_ref = (
+            customer_ref
+              .collection("orders")
+              .document(active_order_id)
+        )
+        if not check_ref.get().exists:
+            need_new_order = True
+
+    # 3️⃣ สร้าง order ใหม่
+    if need_new_order:
         timestamp_id = str(int(time.time() * 1000))
 
         order_ref = (
@@ -1056,7 +1076,7 @@ def get_preorder():
 
         active_order_id = timestamp_id
 
-    # 3️⃣ 🔥 อ่าน Preorder จาก order
+    # 4️⃣ อ่าน Preorder
     order_ref = (
         customer_ref
           .collection("orders")
