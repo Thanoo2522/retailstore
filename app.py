@@ -563,7 +563,7 @@ def get_products_by_mode():
             "status": "error",
             "message": str(e)
         }), 500
-    #-----------------------ยืนยันการสั้งซื้อสินค้า-------------
+    #-----------------------ยืนยันการสั้งซื้อสินค้า-----------
 from google.cloud import firestore
 
 @app.route("/confirm_order", methods=["POST"])
