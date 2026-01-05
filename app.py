@@ -827,6 +827,7 @@ def save_order():
             "into_unit": data.get("into_unit", ""),
             "priceproduct": data.get("priceproduct", 0),
             "order_type": data.get("order_type", ""),
+            "prepare": "Not prepared",
             "created_at": firestore.SERVER_TIMESTAMP
         })
 
@@ -914,6 +915,58 @@ def update_save_order():
             "message": str(e)
         }), 500
 
+#------------------ เพื่อ set prepared ---------------
+@app.route("/set_item_prepare", methods=["POST"])
+def set_item_prepare():
+    try:
+        data = request.get_json()
+
+        shopname = data.get("shopname")
+        customer_name = data.get("customerName")
+        order_id = data.get("orderId")
+        prepare = data.get("prepare")  # "prepared"
+
+        # 🔍 validate
+        if not all([shopname, customer_name, order_id, prepare]):
+            return jsonify({
+                "status": "error",
+                "message": "missing required fields"
+            }), 400
+
+        # 🔥 items collection path
+        items_ref = (
+            db.collection(shopname)
+              .document("customer")
+              .collection("customers")
+              .document(customer_name)
+              .collection("orders")
+              .document(order_id)
+              .collection("items")
+        )
+
+        docs = items_ref.stream()
+
+        updated_count = 0
+
+        for doc in docs:
+            items_ref.document(doc.id).update({
+                "prepare": prepare
+            })
+            updated_count += 1
+
+        return jsonify({
+            "status": "success",
+            "message": "all items updated",
+            "orderId": order_id,
+            "updatedItems": updated_count,
+            "prepare": prepare
+        })
+
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
 
 #---------------------------------------
 @app.route("/get_orders", methods=["GET"])
