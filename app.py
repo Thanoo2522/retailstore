@@ -600,20 +600,22 @@ def confirm_order():
                 "message": "Order not found"
             }), 404
 
-        # 1️⃣ update status ของ order
+        # 1️⃣ update status order
         order_ref.update({
             "status": "confirmed",
             "confirmedAt": firestore.SERVER_TIMESTAMP
         })
 
-        # 2️⃣ update status items ทุกตัว
+        # 2️⃣ update items + เก็บ itemIds
         items_ref = order_ref.collection("items")
         items = items_ref.stream()
 
         batch = db.batch()
+        item_ids = []
         count = 0
 
         for item in items:
+            item_ids.append(item.id)   # ⭐ เก็บ ItemID
             batch.update(item.reference, {
                 "status": "confirmed"
             })
@@ -622,23 +624,24 @@ def confirm_order():
         if count > 0:
             batch.commit()
 
-        # 3️⃣ ล้าง activeOrderId ของ customer
+        # 3️⃣ ล้าง activeOrderId
         customer_ref.update({
             "activeOrderId": ""
         })
 
-        # 🔔 4️⃣ สร้าง notification โดยใช้ activeOrderId เป็น document id
+        # 🔔 4️⃣ สร้าง notification + itemIds
         notif_ref = (
             db.collection(shopname)
               .document("system")
               .collection("notifications")
-              .document(activeOrderId)   # ⭐ ตรงนี้
+              .document(activeOrderId)
         )
 
         notif_ref.set({
             "type": "order_confirmed",
             "orderId": activeOrderId,
             "customerName": customerName,
+            "itemIds": item_ids,   # ✅ เพิ่มตรงนี้
             "status": "unread",
             "createdAt": firestore.SERVER_TIMESTAMP
         })
@@ -646,7 +649,8 @@ def confirm_order():
         return jsonify({
             "status": "success",
             "orderId": activeOrderId,
-            "updatedItems": count
+            "updatedItems": count,
+            "itemIds": item_ids
         })
 
     except Exception as e:
